@@ -12,7 +12,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SERVICE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"   # → .system/services/telegram-bot
+SERVICE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"   # → src/clawde
 ENV_FILE="$SERVICE_DIR/.env.production"
 SSH_KEY="$SERVICE_DIR/ssh-deploy-key"
 
