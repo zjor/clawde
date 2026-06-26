@@ -1,0 +1,20 @@
+# Node
+node_modules/
+dist/
+coverage/
+*.log
+
+# Env / secrets
+.env
+.env.local
+.env.production
+ssh-deploy-key
+ssh-deploy-key.pub
+
+# Python (transcriber)
+.venv/
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
