@@ -78,6 +78,61 @@ pnpm run typecheck    # tsc --noEmit
 docker compose up -d --build
 ```
 
+## Deployment (k8s)
+
+Deployed to the personal **`midgard`** cluster (RKE2, via Rancher at
+`rancher.royz.cc`) — namespace `app-clawde`, Helm release `clawde`. The cluster's
+`local-path` StorageClass backs the three RWO PVCs (repo / db / bot-home), which
+matches the chart default in `deploy/chart/values.yaml`.
+
+Access uses a **local, gitignored kubeconfig** (it holds a bearer token — never
+commit it; `kubeconfig*.yaml` is in `.gitignore`):
+
+```bash
+export KUBECONFIG=src/clawde/deploy/kubeconfig.midgard.yaml   # run from src/clawde/
+kubectl get pods -n app-clawde
+kubectl logs -n app-clawde deploy/clawde -f
+```
+
+Deploy flow (all scripts in `deploy/scripts/`, run from `src/clawde/`, with
+`KUBECONFIG` exported):
+
+```bash
+docker login                                # push as zjor
+./deploy/scripts/docker-build-and-push.sh   # → zjor/clawde:<git-short-sha> (linux/amd64)
+./deploy/scripts/create-secrets.sh          # clawde-env (.env.production) + clawde-ssh (ssh-deploy-key)
+./deploy/scripts/deploy-with-helm.sh        # helm upgrade --install at current short SHA
+```
+
+Build/push and deploy read the **current git short SHA**, so run them from the
+same commit.
+
+### Claude auth in the pod
+
+Auth flows through env, **not** an interactive login. Pick one and put it in
+`.env.production` (→ `clawde-env` Secret → passed to the Claude CLI via
+`process.env`). The Secret — not the bot-home PVC — is what makes auth durable,
+so it survives even a PVC wipe.
+
+- **Subscription (default here):** generate a long-lived OAuth token, then set it
+  as `CLAUDE_CODE_OAUTH_TOKEN` in `.env.production`:
+  ```bash
+  kubectl exec -it -n app-clawde -c clawde deploy/clawde -- claude setup-token
+  ```
+  Note: `setup-token` only **prints** the token (valid ~1 year) — it does NOT
+  store it. Copy it into `.env.production`, then re-run `create-secrets.sh` (which
+  re-syncs the Secret and rolls the pod). To rotate, repeat the same two steps.
+  Leave `ANTHROPIC_API_KEY` unset when using this.
+- **API billing:** set `ANTHROPIC_API_KEY=sk-ant-...` in `.env.production` instead;
+  it takes precedence over the OAuth token.
+
+Verify auth after a roll:
+```bash
+kubectl exec -n app-clawde -c clawde deploy/clawde -- \
+  sh -c 'echo "say pong" | claude -p --output-format json --dangerously-skip-permissions'
+# expect "is_error":false ; "Not logged in · Please run /login" means no valid creds
+```
+
 ## Configuration
 
 Env-driven — see `src/clawde/.env.example`. The bot is **repo-agnostic**: the

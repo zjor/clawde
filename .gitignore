@@ -10,11 +10,15 @@ coverage/
 .env.production
 ssh-deploy-key
 ssh-deploy-key.pub
+kubeconfig*.yaml
 
 # Python (transcriber)
 .venv/
 __pycache__/
 *.pyc
+
+# IDE
+.idea/
 
 # OS
 .DS_Store
